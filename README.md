@@ -41,6 +41,23 @@ cp .env.example .env                    # Điền API keys
 python naive_baseline.py                # ⚠️ Chạy TRƯỚC để có baseline
 ```
 
+## Codex/ckey chỉ dùng trong project
+
+Các wrapper dưới đây cô lập Codex khỏi cấu hình người dùng, bao gồm
+`~/.codex/config.toml`:
+
+```bash
+./scripts/codex-project.sh --show-isolation  # kiểm tra đường dẫn
+./scripts/ckey-install-project.sh            # tải + review, chưa chạy
+./scripts/ckey-install-project.sh --run      # chạy sau khi review
+./scripts/codex-project.sh                   # mở Codex đã cô lập
+```
+
+Wrapper đặt `HOME`, `CODEX_HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` và
+`TMPDIR` vào các thư mục git-ignore bên trong repository. Installer chạy
+bằng `env -i`, nên không kế thừa API key hoặc biến cấu hình từ shell hiện tại.
+Chế độ mặc định chỉ tải và hiển thị installer; `--run` là opt-in sau review.
+
 ## Chạy toàn bộ
 
 ```bash

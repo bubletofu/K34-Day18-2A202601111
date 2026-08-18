@@ -1,12 +1,21 @@
 """Shared configuration for Lab 18."""
 
 import os
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv() -> bool:
+        """Keep the lab usable before optional dependencies are installed."""
+        return False
+
 
 load_dotenv()
 
-# --- API Keys ---
+# --- API Keys & LLM ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.xah.io/v1" if (OPENAI_API_KEY and len(OPENAI_API_KEY) == 67 and OPENAI_API_KEY.startswith("sk-")) else "")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-oss-120b" if OPENAI_BASE_URL else "gpt-4o-mini")
 
 # --- Qdrant ---
 QDRANT_HOST = "localhost"

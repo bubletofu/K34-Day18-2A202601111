@@ -1,4 +1,10 @@
 .env
+.venv/
+.codex-local/
+.codex-home/
+.config-local/
+.cache-local/
+.tmp-local/
 .DS_Store
 __pycache__/
 *.pyc

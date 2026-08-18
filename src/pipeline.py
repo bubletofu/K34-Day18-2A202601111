@@ -27,8 +27,16 @@ def build_pipeline():
     all_chunks = []
     for doc in docs:
         parents, children = chunk_hierarchical(doc["text"], metadata=doc["metadata"])
+        parent_texts = {parent.metadata["parent_id"]: parent.text for parent in parents}
         for child in children:
-            all_chunks.append({"text": child.text, "metadata": {**child.metadata, "parent_id": child.parent_id}})
+            all_chunks.append({
+                "text": child.text,
+                "metadata": {
+                    **child.metadata,
+                    "parent_id": child.parent_id,
+                    "parent_text": parent_texts[child.parent_id],
+                },
+            })
     print(f"  ✓ {len(all_chunks)} chunks from {len(docs)} documents ({time.time()-t0:.1f}s)", flush=True)
 
     # Step 2: Enrichment (M5)
@@ -62,15 +70,25 @@ def run_query(query: str, search: HybridSearch, reranker: CrossEncoderReranker) 
     results = search.search(query)
     docs = [{"text": r.text, "score": r.score, "metadata": r.metadata} for r in results]
     reranked = reranker.rerank(query, docs, top_k=RERANK_TOP_K)
-    contexts = [r.text for r in reranked] if reranked else [r.text for r in results[:3]]
+    candidates = reranked if reranked else results[:3]
+    contexts = []
+    seen_contexts = set()
+    for candidate in candidates:
+        context = candidate.metadata.get("parent_text", candidate.text)
+        if context not in seen_contexts:
+            contexts.append(context)
+            seen_contexts.add(context)
 
-    from config import OPENAI_API_KEY
+    from config import OPENAI_API_KEY, OPENAI_BASE_URL, LLM_MODEL
     if OPENAI_API_KEY and contexts:
         try:
             from openai import OpenAI
-            client = OpenAI()
+            kwargs = {"api_key": OPENAI_API_KEY}
+            if OPENAI_BASE_URL:
+                kwargs["base_url"] = OPENAI_BASE_URL
+            client = OpenAI(**kwargs)
             context_str = "\n\n".join(contexts)
-            resp = client.chat.completions.create(model="gpt-4o-mini", messages=[
+            resp = client.chat.completions.create(model=LLM_MODEL, messages=[
                 {"role": "system", "content": "Trả lời CHỈ dựa trên context. Nếu không có → nói 'Không tìm thấy.'"},
                 {"role": "user", "content": f"Context:\n{context_str}\n\nCâu hỏi: {query}"},
             ])
@@ -110,7 +128,8 @@ def evaluate_pipeline(search: HybridSearch, reranker: CrossEncoderReranker):
         print(f"  {'✓' if s >= 0.75 else '✗'} {m}: {s:.4f}")
 
     failures = failure_analysis(results.get("per_question", []))
-    save_report(results, failures)
+    os.makedirs("reports", exist_ok=True)
+    save_report(results, failures, path=os.path.join("reports", "ragas_report.json"))
     return results
 
 
