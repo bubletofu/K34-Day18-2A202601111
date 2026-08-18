@@ -52,27 +52,38 @@ def check_todos() -> int:
 
 
 def run_tests() -> tuple[int, int]:
-    """Run pytest and return (passed, total)."""
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=no", "-q"],
-            capture_output=True, text=True, timeout=120,
-        )
-        lines = result.stdout.strip().split("\n")
-        summary = lines[-1] if lines else ""
-        # Parse "X passed, Y failed" or "X passed"
-        passed = total = 0
-        for part in summary.split(","):
-            part = part.strip()
-            if "passed" in part:
-                passed = int(part.split()[0])
-                total += passed
-            if "failed" in part:
-                total += int(part.split()[0])
-        return passed, total
-    except Exception as e:
-        print(f"  ⚠️  pytest error: {e}")
-        return 0, 0
+    """Run pytest module-by-module for responsive feedback and robustness."""
+    import re
+    test_files = [
+        ("M1 Chunking", "tests/test_m1.py"),
+        ("M2 Search", "tests/test_m2.py"),
+        ("M3 Rerank", "tests/test_m3.py"),
+        ("M4 Eval", "tests/test_m4.py"),
+        ("M5 Enrichment", "tests/test_m5.py"),
+    ]
+    total_passed = 0
+    total_count = 0
+    for name, test_path in test_files:
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", test_path, "-q", "--tb=no"],
+                capture_output=True, text=True, timeout=180,
+            )
+            summary = result.stdout.strip()
+            m_pass = re.search(r"(\d+)\s+passed", summary)
+            m_fail = re.search(r"(\d+)\s+failed", summary)
+            passed = int(m_pass.group(1)) if m_pass else 0
+            failed = int(m_fail.group(1)) if m_fail else 0
+            file_total = passed + failed
+            total_passed += passed
+            total_count += file_total
+            if failed == 0 and passed > 0:
+                print(f"  ✅ {name:<15}: {passed}/{file_total} passed")
+            else:
+                print(f"  ⚠️  {name:<15}: {passed}/{file_total} passed ({failed} failed)")
+        except Exception as e:
+            print(f"  ⚠️  {name:<15}: error {e}")
+    return total_passed, total_count
 
 
 def validate():
@@ -105,7 +116,7 @@ def validate():
     reflections = []
     ref_dir = "analysis/reflections"
     if os.path.isdir(ref_dir):
-        reflections = [f for f in os.listdir(ref_dir) if f.startswith("reflection_") and f.endswith(".md")]
+        reflections = [f for f in os.listdir(ref_dir) if f.startswith("reflection_") and f.endswith(".md") and f != "reflection_TEMPLATE.md"]
     if reflections:
         for r in reflections:
             print(f"  ✅ {ref_dir}/{r}")

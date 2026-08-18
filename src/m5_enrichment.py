@@ -144,7 +144,7 @@ def _enrich_single_call(text: str, source: str) -> dict:
             content = _chat(
                 prompt,
                 f"Tài liệu: {source}\n\nĐoạn văn:\n{text}",
-                max_tokens=400,
+                max_tokens=1200,
                 json_mode=True,
             )
             result = _parse_json(content)
@@ -168,7 +168,7 @@ def _chat(system_prompt: str, user_prompt: str, max_tokens: int,
     from config import OPENAI_BASE_URL, LLM_MODEL
 
     extra = {"response_format": {"type": "json_object"}} if json_mode else {}
-    kwargs = {"api_key": OPENAI_API_KEY}
+    kwargs = {"api_key": OPENAI_API_KEY, "timeout": 15.0}
     if OPENAI_BASE_URL:
         kwargs["base_url"] = OPENAI_BASE_URL
     response = OpenAI(**kwargs).chat.completions.create(
@@ -213,13 +213,23 @@ def _clean_list_item(line: str) -> str:
 
 def _parse_json(content: str):
     cleaned = content.strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(
-            r"^```(?:json)?\s*|\s*```$",
-            "",
-            cleaned,
-            flags=re.IGNORECASE,
-        )
+    if "```" in cleaned:
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned, re.IGNORECASE)
+        if match:
+            cleaned = match.group(1).strip()
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidate = cleaned[start:end+1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            cleaned_candidate = re.sub(r",\s*([}\]])", r"\1", candidate)
+            return json.loads(cleaned_candidate)
     return json.loads(cleaned)
 
 
