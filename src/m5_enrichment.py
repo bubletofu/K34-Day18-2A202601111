@@ -162,8 +162,15 @@ def _enrich_single_call(text: str, source: str) -> dict:
     }
 
 
+_CHAT_CACHE: dict[tuple[str, str, int, bool], str] = {}
+
+
 def _chat(system_prompt: str, user_prompt: str, max_tokens: int,
           json_mode: bool = False) -> str:
+    cache_key = (system_prompt, user_prompt, max_tokens, json_mode)
+    if cache_key in _CHAT_CACHE:
+        return _CHAT_CACHE[cache_key]
+
     from openai import OpenAI
     from config import OPENAI_BASE_URL, LLM_MODEL
 
@@ -181,7 +188,10 @@ def _chat(system_prompt: str, user_prompt: str, max_tokens: int,
         temperature=0,
         **extra,
     )
-    return (response.choices[0].message.content or "").strip()
+    result = (response.choices[0].message.content or "").strip()
+    if result:
+        _CHAT_CACHE[cache_key] = result
+    return result
 
 
 def _sentences(text: str) -> list[str]:

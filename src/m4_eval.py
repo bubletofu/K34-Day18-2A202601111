@@ -61,6 +61,8 @@ def evaluate_ragas(questions: list[str], answers: list[str],
                     "model": LLM_MODEL,
                     "api_key": OPENAI_API_KEY,
                     "temperature": 0,
+                    "timeout": 15.0,
+                    "max_retries": 1,
                 }
                 if OPENAI_BASE_URL:
                     chat_kwargs["base_url"] = OPENAI_BASE_URL
